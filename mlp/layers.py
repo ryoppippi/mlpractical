@@ -318,12 +318,17 @@ class ReluLayer(Layer):
 
 class LeakyReluLayer(Layer):
     """Layer implementing an element-wise leaky rectified linear transformation."""
+
+    def __init__(self):
+        self.alpha = 0.01
+
     def fprop(self, inputs):
         """Forward propagates activations through the layer transformation.
 
         For inputs `x` and outputs `y` this corresponds to `y = max(0, x)`.
         """
-        outputs = inputs #remove and replace with your code
+
+        outputs = np.where(inputs > 0.0, inputs, self.alpha* inputs) #remove and replace with your code
         return outputs
 
     def bprop(self, inputs, outputs, grads_wrt_outputs):
@@ -332,7 +337,7 @@ class LeakyReluLayer(Layer):
         Given gradients with respect to the outputs of the layer calculates the
         gradients with respect to the layer inputs.
         """
-        gradients = inputs #remove and replace with your code
+        gradients = np.where(inputs > 0.0, 1.0, self.alpha) * grads_wrt_outputs #remove and replace with your code
         return gradients
 
     def __repr__(self):
@@ -341,12 +346,15 @@ class LeakyReluLayer(Layer):
 class ELULayer(Layer):
     """Layer implementing an ELU activation."""
 
+    def __init__(self):
+        self.alpha = 1.0
+
     def fprop(self, inputs):
         """Forward propagates activations through the layer transformation.
 
         For inputs `x` and outputs `y` this corresponds to `y = max(0, x)`.
         """
-        outputs = inputs #remove and replace with your code
+        outputs = np.where(inputs  > 0.0, inputs, self.alpha * (np.exp(inputs) - 1)) #remove and replace with your code
         return outputs
 
     def bprop(self, inputs, outputs, grads_wrt_outputs):
@@ -355,7 +363,7 @@ class ELULayer(Layer):
         Given gradients with respect to the outputs of the layer calculates the
         gradients with respect to the layer inputs.
         """
-        gradients = inputs #remove and replace with your code
+        gradients = np.where(inputs > 0.0, 1.0, self.alpha * np.exp(inputs)) * grads_wrt_outputs #remove and replace with your code
         return gradients
 
     def __repr__(self):
@@ -365,12 +373,16 @@ class SELULayer(Layer):
     """Layer implementing a Self Normalizing ELU."""
     #α01 ≈ 1.6733 and λ01 ≈ 1.0507
 
+    def __init__(self):
+        self.alpha = 1.6733
+        self.sigma = 1.0507
+
     def fprop(self, inputs):
         """Forward propagates activations through the layer transformation.
 
         For inputs `x` and outputs `y` this corresponds to `y = max(0, x)`.
         """
-        outputs = inputs #remove and replace with your code
+        outputs =  self.sigma * np.where(inputs  > 0, inputs, self.alpha * (np.exp(inputs) - 1)) #remove and replace with your code
         return outputs
 
     def bprop(self, inputs, outputs, grads_wrt_outputs):
@@ -379,7 +391,7 @@ class SELULayer(Layer):
         Given gradients with respect to the outputs of the layer calculates the
         gradients with respect to the layer inputs.
         """
-        gradients = inputs #remove and replace with your code
+        gradients = self.sigma * np.where(inputs > 0.0, 1.0, self.alpha * np.exp(inputs)) * grads_wrt_outputs #remove and replace with your code
         return gradients
 
     def __repr__(self):
@@ -426,4 +438,3 @@ class SoftmaxLayer(Layer):
 
     def __repr__(self):
         return 'SoftmaxLayer'
-
