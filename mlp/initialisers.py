@@ -67,7 +67,23 @@ class NormalInit(object):
 class SELUInit(object):
     """SELU Initializer."""
     # write code that implements SELU initialization. Take inspiration from the other initializers in this file.
-    pass
+    def __init__(self, gain=1., rng=None):
+        """Construct a normalised initilisation random initialiser object.
+        Args:
+            gain: Multiplicative factor to scale initialised weights by.
+                Recommended values is 1 for affine layers followed by
+                logistic sigmoid layers (or another affine layer).
+            rng (RandomState): Seeded random number generator.
+        """
+        self.gain = gain
+        if rng is None:
+            rng = np.random.RandomState(DEFAULT_SEED)
+        self.rng = rng
+
+    def __call__(self, shape):
+        std = self.gain * (2. / shape[0])**0.5
+        return self.rng.normal(loc=0., scale=std, size=shape)
+
 
 class GlorotUniformInit(object):
     """Glorot and Bengio (2010) random uniform weights initialiser.

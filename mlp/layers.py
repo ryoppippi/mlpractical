@@ -1,12 +1,9 @@
 # -*- coding: utf-8 -*-
 """Layer definitions.
-
 This module defines classes which encapsulate a single layer.
-
 These layers map input activations to output activation with the `fprop`
 method and map gradients with repsect to outputs to gradients with respect to
 their inputs with the `bprop` method.
-
 Some layers will have learnable parameters and so will additionally define
 methods for getting and setting parameter and calculating gradients with
 respect to the layer parameters.
@@ -21,10 +18,8 @@ class Layer(object):
 
     def fprop(self, inputs):
         """Forward propagates activations through the layer transformation.
-
         Args:
             inputs: Array of layer inputs of shape (batch_size, input_dim).
-
         Returns:
             outputs: Array of layer outputs of shape (batch_size, output_dim).
         """
@@ -32,17 +27,14 @@ class Layer(object):
 
     def bprop(self, inputs, outputs, grads_wrt_outputs):
         """Back propagates gradients through a layer.
-
         Given gradients with respect to the outputs of the layer calculates the
         gradients with respect to the layer inputs.
-
         Args:
             inputs: Array of layer inputs of shape (batch_size, input_dim).
             outputs: Array of layer outputs calculated in forward pass of
                 shape (batch_size, output_dim).
             grads_wrt_outputs: Array of gradients with respect to the layer
                 outputs of shape (batch_size, output_dim).
-
         Returns:
             Array of gradients with respect to the layer inputs of shape
             (batch_size, input_dim).
@@ -55,12 +47,10 @@ class LayerWithParameters(Layer):
 
     def grads_wrt_params(self, inputs, grads_wrt_outputs):
         """Calculates gradients with respect to layer parameters.
-
         Args:
             inputs: Array of inputs to layer of shape (batch_size, input_dim).
             grads_wrt_to_outputs: Array of gradients with respect to the layer
                 outputs of shape (batch_size, output_dim).
-
         Returns:
             List of arrays of gradients with respect to the layer parameters
             with parameter gradients appearing in same order in tuple as
@@ -71,7 +61,6 @@ class LayerWithParameters(Layer):
     @property
     def params(self):
         """Returns a list of parameters of layer.
-
         Returns:
             List of current parameter values. This list should be in the
             corresponding order to the `values` argument to `set_params`.
@@ -81,7 +70,6 @@ class LayerWithParameters(Layer):
     @params.setter
     def params(self, values):
         """Sets layer parameters from a list of values.
-
         Args:
             values: List of values to set parameters to. This list should be
                 in the corresponding order to what is returned by `get_params`.
@@ -239,13 +227,10 @@ class SigmoidLayer(Layer):
 
     def fprop(self, inputs):
         """Forward propagates activations through the layer transformation.
-
         For inputs `x` and outputs `y` this corresponds to
         `y = 1 / (1 + exp(-x))`.
-
         Args:
             inputs: Array of layer inputs of shape (batch_size, input_dim).
-
         Returns:
             outputs: Array of layer outputs of shape (batch_size, output_dim).
         """
@@ -253,17 +238,14 @@ class SigmoidLayer(Layer):
 
     def bprop(self, inputs, outputs, grads_wrt_outputs):
         """Back propagates gradients through a layer.
-
         Given gradients with respect to the outputs of the layer calculates the
         gradients with respect to the layer inputs.
-
         Args:
             inputs: Array of layer inputs of shape (batch_size, input_dim).
             outputs: Array of layer outputs calculated in forward pass of
                 shape (batch_size, output_dim).
             grads_wrt_outputs: Array of gradients with respect to the layer
                 outputs of shape (batch_size, output_dim).
-
         Returns:
             Array of gradients with respect to the layer inputs of shape
             (batch_size, input_dim).
@@ -279,14 +261,12 @@ class TanhLayer(Layer):
 
     def fprop(self, inputs):
         """Forward propagates activations through the layer transformation.
-
         For inputs `x` and outputs `y` this corresponds to `y = tanh(x)`.
         """
         return np.tanh(inputs)
 
     def bprop(self, inputs, outputs, grads_wrt_outputs):
         """Back propagates gradients through a layer.
-
         Given gradients with respect to the outputs of the layer calculates the
         gradients with respect to the layer inputs.
         """
@@ -300,14 +280,12 @@ class ReluLayer(Layer):
 
     def fprop(self, inputs):
         """Forward propagates activations through the layer transformation.
-
         For inputs `x` and outputs `y` this corresponds to `y = max(0, x)`.
         """
         return np.maximum(inputs, 0.)
 
     def bprop(self, inputs, outputs, grads_wrt_outputs):
         """Back propagates gradients through a layer.
-
         Given gradients with respect to the outputs of the layer calculates the
         gradients with respect to the layer inputs.
         """
@@ -324,7 +302,6 @@ class LeakyReluLayer(Layer):
 
     def fprop(self, inputs):
         """Forward propagates activations through the layer transformation.
-
         For inputs `x` and outputs `y` this corresponds to `y = max(0, x)`.
         """
 
@@ -333,7 +310,6 @@ class LeakyReluLayer(Layer):
 
     def bprop(self, inputs, outputs, grads_wrt_outputs):
         """Back propagates gradients through a layer.
-
         Given gradients with respect to the outputs of the layer calculates the
         gradients with respect to the layer inputs.
         """
@@ -351,7 +327,6 @@ class ELULayer(Layer):
 
     def fprop(self, inputs):
         """Forward propagates activations through the layer transformation.
-
         For inputs `x` and outputs `y` this corresponds to `y = max(0, x)`.
         """
         outputs = np.where(inputs  > 0.0, inputs, self.alpha * (np.exp(inputs) - 1)) #remove and replace with your code
@@ -359,7 +334,6 @@ class ELULayer(Layer):
 
     def bprop(self, inputs, outputs, grads_wrt_outputs):
         """Back propagates gradients through a layer.
-
         Given gradients with respect to the outputs of the layer calculates the
         gradients with respect to the layer inputs.
         """
@@ -379,15 +353,13 @@ class SELULayer(Layer):
 
     def fprop(self, inputs):
         """Forward propagates activations through the layer transformation.
-
         For inputs `x` and outputs `y` this corresponds to `y = max(0, x)`.
         """
-        outputs =  self.sigma * np.where(inputs  > 0, inputs, self.alpha * (np.exp(inputs) - 1)) #remove and replace with your code
+        outputs =  self.sigma * np.where(inputs  > 0., inputs, self.alpha * (np.exp(inputs) - 1)) #remove and replace with your code
         return outputs
 
     def bprop(self, inputs, outputs, grads_wrt_outputs):
         """Back propagates gradients through a layer.
-
         Given gradients with respect to the outputs of the layer calculates the
         gradients with respect to the layer inputs.
         """
@@ -402,33 +374,27 @@ class SoftmaxLayer(Layer):
 
     def fprop(self, inputs):
         """Forward propagates activations through the layer transformation.
-
         For inputs `x` and outputs `y` this corresponds to
-
             `y = exp(x) / sum(exp(x))`.
-
         Args:
             inputs: Array of layer inputs of shape (batch_size, input_dim).
-
         Returns:
             outputs: Array of layer outputs of shape (batch_size, output_dim).
         """
-        exp_inputs = np.exp(inputs)
+        exp_inputs = np.exp(inputs - inputs.max(-1)[:, None])
+
         return exp_inputs / exp_inputs.sum(-1)[:, None]
 
     def bprop(self, inputs, outputs, grads_wrt_outputs):
         """Back propagates gradients through a layer.
-
         Given gradients with respect to the outputs of the layer calculates the
         gradients with respect to the layer inputs.
-
         Args:
             inputs: Array of layer inputs of shape (batch_size, input_dim).
             outputs: Array of layer outputs calculated in forward pass of
                 shape (batch_size, output_dim).
             grads_wrt_outputs: Array of gradients with respect to the layer
                 outputs of shape (batch_size, output_dim).
-
         Returns:
             Array of gradients with respect to the layer inputs of shape
             (batch_size, input_dim).
