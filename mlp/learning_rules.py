@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+    # -*- coding: utf-8 -*-
 """Learning rules.
 
 This module contains classes implementing gradient based learning rules.
@@ -72,6 +72,61 @@ class GradientDescentLearningRule(object):
         for param, grad in zip(self.params, grads_wrt_params):
             param -= self.learning_rate * grad
 
+class RMSPropLearningRule(GradientDescentLearningRule):
+    def __init__(self, learning_rate=0.001, beta=0.99, eps=1e-8):
+        super().__init__(learning_rate)
+        self.beta = beta
+        self.eps = eps
+
+    def initialise(self, params):
+        super().initialise(params)
+        self.S = []
+        for param in self.params:
+            self.S.append(np.zeros_like(param))
+
+    def reset(self):
+        for s in zip(self.S):
+            s *= 0.
+
+    def update_params(self, grads_wrt_params):
+        for param, s, grad in zip(self.params, self.S, grads_wrt_params):
+            s *= self.beta
+            s += (1 - self.beta) * grad * grad
+            param -= self.learning_rate / (np.sqrt(s) + self.eps) * grad
+
+
+class AdamLearningRule(GradientDescentLearningRule):
+    def __init__(self, learning_rate=0.001, beta1=0.9, beta2=0.999, eps=1e-8, params=None):
+        super().__init__(learning_rate)
+        self.beta1 = beta1
+        self.beta2 = beta2
+        self.eps = eps
+
+    def initialise(self, params):
+        super().initialise(params)
+        self.ms = []
+        self.vs = []
+        for param in self.params:
+            self.ms.append(np.zeros_like(param))
+            self.vs.append(np.zeros_like(param))
+        self.t = 0.
+
+    def reset(self):
+        for m, v in zip(self.ms, self.vs):
+            m *= 0.
+            v *= 0.
+        self.t = 0.
+
+    def update_params(self, grads_wrt_params):
+        self.t += 1.
+        for param, m, v, grad in zip(self.params, self.ms, self.vs, grads_wrt_params):
+            m *= self.beta1
+            m += (1 - self.beta1) * grad
+            v *= self.beta2
+            v += (1 - self.beta2) * grad * grad
+            m_hat = m / (1 - self.beta1 ** self.t)
+            v_hat = v / (1 - self.beta2 ** self.t)
+            param -= self.learning_rate * m_hat / (np.sqrt(v_hat) + self.eps)
 
 class MomentumLearningRule(GradientDescentLearningRule):
     """Gradient descent with momentum learning rule.
@@ -133,16 +188,16 @@ class MomentumLearningRule(GradientDescentLearningRule):
                 update.
         """
         super(MomentumLearningRule, self).initialise(params)
-        self.moms = []
+        self.ms = []
         for param in self.params:
-            self.moms.append(np.zeros_like(param))
+            self.ms.append(np.zeros_like(param))
 
     def reset(self):
         """Resets any additional state variables to their intial values.
 
         For this learning rule this corresponds to zeroing all the momenta.
         """
-        for mom in zip(self.moms):
+        for mom in zip(self.ms):
             mom *= 0.
 
     def update_params(self, grads_wrt_params):
@@ -156,7 +211,7 @@ class MomentumLearningRule(GradientDescentLearningRule):
                 with respect to each of the parameters passed to `initialise`
                 previously, with this list expected to be in the same order.
         """
-        for param, mom, grad in zip(self.params, self.moms, grads_wrt_params):
+        for param, mom, grad in zip(self.params, self.ms, grads_wrt_params):
             mom *= self.mom_coeff
             mom -= self.learning_rate * grad
             param += mom

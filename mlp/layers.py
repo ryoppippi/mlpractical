@@ -357,8 +357,15 @@ class BatchNormalizationLayer(StochasticLayerWithParameters):
 
     def fprop(self, inputs, stochastic=True):
         """Forward propagates inputs through a layer."""
-
-        raise NotImplementedError
+        mu = np.mean(inputs, axis = 0)
+        xmu = inputs - mu
+        var = np.mean(xmu**2, axis = 0)
+        sqrtvar = np.sqrt(var + self.epsilon)
+        ivar = 1./sqrtvar
+        xhat = xmu / sqrtvar
+        self.cache = (xmu, var, xhat, sqrtvar, ivar)
+        return self.gamma * xhat + self.beta
+        # raise NotImplementedError
 
     def bprop(self, inputs, outputs, grads_wrt_outputs):
         """Back propagates gradients through a layer.
@@ -377,8 +384,21 @@ class BatchNormalizationLayer(StochasticLayerWithParameters):
             Array of gradients with respect to the layer inputs of shape
             (batch_size, input_dim).
         """
+        xmu, var, xhat, sqrtvar, ivar = self.cache
+        dxhat = grads_wrt_outputs * self.gamma
+        divar = np.sum(dxhat * xmu, axis=0)
+        dxmu1 = dxhat * ivar
+        dsqrtvar = divar * (-1. / sqrtvar**2)
+        dvar = 0.5 * 1 / np.sqrt(var + self.epsilon) * dsqrtvar
+        dsq = 1. / outputs.shape[0] * np.ones_like(outputs) * dvar
+        dxmu2 = 2 * xmu * dsq
+        dx1 = dxmu1 + dxmu2
+        dmu = -1. * np.sum(dxmu1 + dxmu2, axis=0)
+        dx2 = 1. / outputs.shape[0] *  np.ones_like(outputs)* dmu
+        dx = dx1 + dx2
 
-        raise NotImplementedError
+        return dx
+        # raise NotImplementedError
 
     def grads_wrt_params(self, inputs, grads_wrt_outputs):
         """Calculates gradients with respect to layer parameters.
@@ -392,7 +412,11 @@ class BatchNormalizationLayer(StochasticLayerWithParameters):
             list of arrays of gradients with respect to the layer parameters
             `[grads_wrt_weights, grads_wrt_biases]`.
         """
-        raise NotImplementedError
+        xmu, var, xhat, sqrtvar, ivar = self.cache
+        dgamma = np.sum(grads_wrt_outputs * xhat, axis=0)
+        dbeta =  grads_wrt_outputs.sum(axis=0)
+        return [dgamma, dbeta]
+        # raise NotImplementedError
 
     def params_penalty(self):
         """Returns the parameter dependent penalty term for this layer.
