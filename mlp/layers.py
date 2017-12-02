@@ -15,6 +15,7 @@ respect to the layer parameters.
 import numpy as np
 import mlp.initialisers as init
 from mlp import DEFAULT_SEED
+from scipy import signal
 
 class Layer(object):
     """Abstract class defining the interface for a layer."""
@@ -545,7 +546,6 @@ class ConvolutionalLayer(LayerWithParameters):
         self.kernels_penalty = kernels_penalty
         self.biases_penalty = biases_penalty
 
-        self.cache = None
 
     def fprop(self, inputs):
         """Forward propagates activations through the layer transformation.
@@ -556,7 +556,20 @@ class ConvolutionalLayer(LayerWithParameters):
         Returns:
             outputs: Array of layer outputs of shape (batch_size, output_dim).
         """
-        raise NotImplementedError
+        FN, C, FH, FW = self.kernels_shape
+        N, C, H, W  = inputs.shape
+        out_h = int(1 + H - FH)
+        out_w = int(1 + W - FW)
+        out = np.zeros((N, FN, out_h, out_w))
+        for n in range(N):
+            for fn in range(FN):
+                for c in range(C):
+                    out[n,fn] += signal.convolve2d(inputs[n,c], self.kernels[fn,c], 'valid')
+                out[n,fn] += self.biases[fn]
+        return out
+        # raise NotImplementedError
+        # c = c
+        # fn = k
 
     def bprop(self, inputs, outputs, grads_wrt_outputs):
         """Back propagates gradients through a layer.
@@ -576,8 +589,27 @@ class ConvolutionalLayer(LayerWithParameters):
             (batch_size, input_dim).
         """
         # Pad the grads_wrt_outputs
+        FN, C, FH, FW = self.kernels.shape
+        N, FN, out_h, out_w = outputs.shape
+        N, C, H, W = inputs.shape
+        dx = np.zeros((N, C, H, W))
+        for n in range(N):
+            for c in range(C):
+                for fn in range(FN):
+                    dx[n,c] += signal.convolve2d(grads_wrt_outputs[n,fn], np.rot90(self.kernels[fn,c], 2))
 
-        raise NotImplementedError
+                    # I don't know why but the codes below does not work
+                    # for i in range(H):
+                    #     for j in range(W):
+                    #         for s in range(FH):
+                    #             for t in range(FW): #
+                    #                 if i - t >= 0 and i - t < out_h and j - s >= 0 and j - s < out_w:
+                    #                     dx[n, c, i, j] += grads_wrt_outputs[n, fn, i - t, j - s] * self.kernels[fn, c, s, t]
+                    #                     print(dx[n, c, i, j])
+                    #                     print(fn, n, c, i, j, s, t)
+
+        return dx
+        # raise NotImplementedError
 
     def grads_wrt_params(self, inputs, grads_wrt_outputs):
         """Calculates gradients with respect to layer parameters.
@@ -591,7 +623,31 @@ class ConvolutionalLayer(LayerWithParameters):
             `[grads_wrt_kernels, grads_wrt_biases]`.
         """
 
-        raise NotImplementedError
+        FN, C, FH, FW = self.kernels.shape
+        N, C, H, W = inputs.shape
+        out_h = (H - FH) + 1
+        out_w = (W - FW) + 1
+        #grad (N, FN, out_h, out_w)
+        db = np.einsum('ijkl -> j', grads_wrt_outputs)
+        dW = np.zeros((FN, C, FH, FW))
+        for n in range(N):
+            for fn in range(FN):
+                for c in range(C):
+                    dW[fn,c] += np.rot90(signal.convolve2d(inputs[n,c] , np.rot90(grads_wrt_outputs[n,fn], 2) , 'valid'),2)
+                    # for i in range(out_h):
+                    #     for j in range(out_w):
+                    #         for s in range(FH):
+                    #             for t in range(FW):
+                    #                 dW[fn, c, FW - t - 1, FH - s - 1] += inputs[n, c, i + t, j + s] * grads_wrt_outputs[n, fn, i, j]
+        if self.kernels_penalty is not None:
+            dW += self.kernels_penalty.grad(self.kernels)
+
+        if self.biases_penalty is not None:
+            db += self.biases_penalty.grad(self.biases)
+
+        return [dW ,db]
+
+        # raise NotImplementedError
 
     def params_penalty(self):
         """Returns the parameter dependent penalty term for this layer.
@@ -641,6 +697,7 @@ class ReluLayer(Layer):
         Returns:
             outputs: Array of layer outputs of shape (batch_size, output_dim).
         """
+        # print(inputs.shape)
         return np.maximum(inputs, 0.)
 
     def bprop(self, inputs, outputs, grads_wrt_outputs):
@@ -970,6 +1027,85 @@ class DropoutLayer(StochasticLayer):
     def __repr__(self):
         return 'DropoutLayer(incl_prob={0:.1f})'.format(self.incl_prob)
 
+class MaxPoolingLayer(Layer):
+
+    def __init__(self, pool_size=2, stride=2):
+        """Construct a new max-pooling layer.
+
+        Args:
+            pool_size: Positive integer specifying size of pools over
+               which to take maximum value. The outputs of the layer
+               feeding in to this layer must have a dimension which
+               is a multiple of this pool size such that the outputs
+               can be split in to pools with no dimensions left over.
+        """
+        self.pool_size = pool_size
+        self.stride = stride
+
+    def fprop(self, inputs):
+
+        assert inputs.shape[0] % self.pool_size == 0 and inputs.shape[-1] % self.pool_size == 0, (
+            'Last dimension of inputs must be multiple of pool size')
+
+        # N, C, H, W = inputs.shape
+        # out_h = H // self.stride
+        # out_w = W // self.stride
+        # col = np.zeros((0,self.pool_size**2))
+        # for i in inputs:
+        #     for j in i:
+        #         for h in range(0, H, self.stride):
+        #             for w in range(0, W, self.stride):
+        #                 col = np.append(col,j[h:h+self.pool_size, w:w+self.pool_size].reshape((1,-1)),axis=0)
+        # outcol = np.max(col, axis=1)
+        # out = np.zeros((N, C, out_h, out_w))
+        # i = 0
+        # for n in range(N):
+        #     for c in range(C):
+        #         for h in range(out_h):
+        #             for w in range(out_w):
+        #                 out[n, c, h, w] = outcol[i]
+        #                 i+=1
+        #
+        # self.arg_max = np.argmax(col, axis=1)
+        # return out
+        #
+        N, C, H, W = inputs.shape
+        out_h = int(1 + (H - self.pool_size) / self.stride)
+        out_w = int(1 + (W - self.pool_size) / self.stride)
+
+        col = im2col(inputs, self.pool_size, self.pool_size, self.stride)
+        col = col.reshape(-1, self.pool_size*self.pool_size)
+
+        arg_max = np.argmax(col, axis=1)
+        out = np.max(col, axis=1)
+        out = out.reshape(N, out_h, out_w, C).transpose(0, 3, 1, 2)
+
+        self.arg_max = arg_max
+
+        return out
+
+    def bprop(self, inputs, outputs, grads_wrt_outputs):
+        N, C, H, W = inputs.shape
+        out_h = (H - self.pool_size)//self.stride + 1
+        out_w = (W - self.pool_size)//self.stride + 1
+        dout = grads_wrt_outputs.transpose(0, 2, 3, 1)
+        pool_sizes = self.pool_size* self.pool_size
+        dmax = np.zeros((dout.size, pool_sizes))
+        dmax[np.arange(self.arg_max.size), self.arg_max.flatten()] = dout.flatten()
+        dmax = dmax.reshape(dout.shape + (pool_sizes,))
+        dcol = dmax.reshape(dmax.shape[0] * dmax.shape[1] * dmax.shape[2], -1)
+        dcol = dcol.reshape(N, out_h, out_w, C, self.pool_size, self.pool_size).transpose(0, 3, 4, 5, 1, 2)
+        dx = np.zeros((N, C, H + self.stride - 1, W + self.stride - 1))
+        for y in range(self.pool_size):
+            y_max = y + self.stride*out_h
+            for x in range(self.pool_size):
+                x_max = x + self.stride*out_w
+                dx[:, :, y:y_max:self.stride, x:x_max:self.stride] += dcol[:, :, y, x, :, :]
+        return dx[:, :, :H, :W]
+
+    def __repr__(self):
+        return 'MaxPoolingLayer(pool_size={0})'.format(self.pool_size)
+
 class ReshapeLayer(Layer):
     """Layer which reshapes dimensions of inputs."""
 
@@ -1024,3 +1160,69 @@ class ReshapeLayer(Layer):
 
     def __repr__(self):
         return 'ReshapeLayer(output_shape={0})'.format(self.output_shape)
+
+class PrintLayer(LayerWithParameters):
+    def __init__(self):
+        self.fwd_passed = False
+        self.bwd_passed = False
+        self.param_passed = False
+
+    def fprop(self, inputs):
+        if not self.fwd_passed:
+            print('PrintLayer fprop:', inputs.shape)
+            self.fwd_passed = True
+        return inputs
+
+    def bprop(self, inputs, outputs, grads_wrt_outputs):
+        if not self.bwd_passed:
+            print('PrintLayer bprop:', grads_wrt_outputs.shape )
+            self.bwd_passed = True
+        return grads_wrt_outputs
+
+    def grads_wrt_params(self, inputs, grads_wrt_outputs):
+        if not self.param_passed:
+            print('PrintLayer param:', grads_wrt_outputs.shape )
+            self.param_passed = True
+        return [np.zeros((1))]   # late EDIT  !!!
+
+    @property
+    def params(self):
+        """A list of layer parameter values: `[kernels, biases]`."""
+        return [np.zeros((1))]
+
+    @params.setter
+    def params(self, values):
+        pass
+
+    def __repr__(self):
+        return 'PrintLayer'
+def im2col(input_data, filter_h, filter_w, stride=1, pad=0):
+    """
+
+    Parameters
+    ----------
+    input_data : (データ数, チャンネル, 高さ, 幅)の4次元配列からなる入力データ
+    filter_h : フィルターの高さ
+    filter_w : フィルターの幅
+    stride : ストライド
+    pad : パディング
+
+    Returns
+    -------
+    col : 2次元配列
+    """
+    N, C, H, W = input_data.shape
+    out_h = (H + 2*pad - filter_h)//stride + 1
+    out_w = (W + 2*pad - filter_w)//stride + 1
+
+    img = np.pad(input_data, [(0,0), (0,0), (pad, pad), (pad, pad)], 'constant')
+    col = np.zeros((N, C, filter_h, filter_w, out_h, out_w))
+
+    for y in range(filter_h):
+        y_max = y + stride*out_h
+        for x in range(filter_w):
+            x_max = x + stride*out_w
+            col[:, :, y, x, :, :] = img[:, :, y:y_max:stride, x:x_max:stride]
+
+    col = col.transpose(0, 4, 5, 1, 2, 3).reshape(N*out_h*out_w, -1)
+    return col
