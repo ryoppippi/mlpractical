@@ -1047,42 +1047,28 @@ class MaxPoolingLayer(Layer):
         assert inputs.shape[0] % self.pool_size == 0 and inputs.shape[-1] % self.pool_size == 0, (
             'Last dimension of inputs must be multiple of pool size')
 
-        # N, C, H, W = inputs.shape
-        # out_h = H // self.stride
-        # out_w = W // self.stride
-        # col = np.zeros((0,self.pool_size**2))
-        # for i in inputs:
-        #     for j in i:
-        #         for h in range(0, H, self.stride):
-        #             for w in range(0, W, self.stride):
-        #                 col = np.append(col,j[h:h+self.pool_size, w:w+self.pool_size].reshape((1,-1)),axis=0)
-        # outcol = np.max(col, axis=1)
-        # out = np.zeros((N, C, out_h, out_w))
-        # i = 0
-        # for n in range(N):
-        #     for c in range(C):
-        #         for h in range(out_h):
-        #             for w in range(out_w):
-        #                 out[n, c, h, w] = outcol[i]
-        #                 i+=1
-        #
-        # self.arg_max = np.argmax(col, axis=1)
-        # return out
-        #
         N, C, H, W = inputs.shape
-        out_h = int(1 + (H - self.pool_size) / self.stride)
-        out_w = int(1 + (W - self.pool_size) / self.stride)
+        out_h = H // self.stride
+        out_w = W // self.stride
+        col = np.zeros((0,self.pool_size**2))
+        for i in inputs:
+            for j in i:
+                for h in range(0, H, self.stride):
+                    for w in range(0, W, self.stride):
+                        col = np.append(col,j[h:h+self.pool_size, w:w+self.pool_size].reshape((1,-1)),axis=0)
+        outcol = np.max(col, axis=1)
+        out = np.zeros((N, C, out_h, out_w))
+        i = 0
+        for n in range(N):
+            for c in range(C):
+                for h in range(out_h):
+                    for w in range(out_w):
+                        out[n, c, h, w] = outcol[i]
+                        i+=1
 
-        col = im2col(inputs, self.pool_size, self.pool_size, self.stride)
-        col = col.reshape(-1, self.pool_size*self.pool_size)
-
-        arg_max = np.argmax(col, axis=1)
-        out = np.max(col, axis=1)
-        out = out.reshape(N, out_h, out_w, C).transpose(0, 3, 1, 2)
-
-        self.arg_max = arg_max
-
+        self.arg_max = np.argmax(col, axis=1)
         return out
+
 
     def bprop(self, inputs, outputs, grads_wrt_outputs):
         N, C, H, W = inputs.shape
@@ -1196,33 +1182,3 @@ class PrintLayer(LayerWithParameters):
 
     def __repr__(self):
         return 'PrintLayer'
-def im2col(input_data, filter_h, filter_w, stride=1, pad=0):
-    """
-
-    Parameters
-    ----------
-    input_data : (データ数, チャンネル, 高さ, 幅)の4次元配列からなる入力データ
-    filter_h : フィルターの高さ
-    filter_w : フィルターの幅
-    stride : ストライド
-    pad : パディング
-
-    Returns
-    -------
-    col : 2次元配列
-    """
-    N, C, H, W = input_data.shape
-    out_h = (H + 2*pad - filter_h)//stride + 1
-    out_w = (W + 2*pad - filter_w)//stride + 1
-
-    img = np.pad(input_data, [(0,0), (0,0), (pad, pad), (pad, pad)], 'constant')
-    col = np.zeros((N, C, filter_h, filter_w, out_h, out_w))
-
-    for y in range(filter_h):
-        y_max = y + stride*out_h
-        for x in range(filter_w):
-            x_max = x + stride*out_w
-            col[:, :, y, x, :, :] = img[:, :, y:y_max:stride, x:x_max:stride]
-
-    col = col.transpose(0, 4, 5, 1, 2, 3).reshape(N*out_h*out_w, -1)
-    return col
