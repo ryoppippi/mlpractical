@@ -74,13 +74,14 @@ init = tf.global_variables_initializer()  # initialization op for the graph
 
 with tf.Session() as sess:
     sess.run(init)  # actually running the initialization op
-    saver = tf.train.Saver()  # saver object that will save our graph so we can reload it later for continuation of
+    train_saver = tf.train.Saver()  # saver object that will save our graph so we can reload it later for continuation of
+    val_saver = tf.train.Saver()
     #  training or inference
 
     continue_from_epoch = -1
 
     if continue_from_epoch != -1:
-        saver.restore(sess, "{}/{}_{}.ckpt".format(saved_models_filepath, experiment_name,
+        train_saver.restore(sess, "{}/{}_{}.ckpt".format(saved_models_filepath, experiment_name,
                                                    continue_from_epoch))  # restore previous graph to continue operations
 
     best_val_accuracy = 0.
@@ -117,7 +118,7 @@ with tf.Session() as sess:
             total_c_loss /= total_train_batches  # compute mean of los
             total_accuracy /= total_train_batches # compute mean of accuracy
 
-            save_path = saver.save(sess, "{}/{}_{}.ckpt".format(saved_models_filepath, experiment_name, e))
+            save_path = train_saver.save(sess, "{}/{}_{}.ckpt".format(saved_models_filepath, experiment_name, e))
             # save graph and weights
             print("Saved current model at", save_path)
 
@@ -146,7 +147,7 @@ with tf.Session() as sess:
                 #  after the final epoch
                 best_val_accuracy = total_val_accuracy
                 best_epoch = e
-                save_path = saver.save(sess, "{}/best_{}_{}.ckpt".format(saved_models_filepath, experiment_name, e))
+                save_path = val_saver.save(sess, "{}/best_validation_{}_{}.ckpt".format(saved_models_filepath, experiment_name, e))
                 print("Saved best validation score model at", save_path)
 
             epoch_pbar.update(1)
@@ -155,7 +156,7 @@ with tf.Session() as sess:
                             [e, total_c_loss, total_accuracy, total_val_c_loss, total_val_accuracy,
                              -1, -1])
 
-        saver.restore(sess, "{}/best_{}_{}.ckpt".format(saved_models_filepath, experiment_name, best_epoch))
+        val_saver.restore(sess, "{}/best_validation_{}_{}.ckpt".format(saved_models_filepath, experiment_name, best_epoch))
         # restore model with best performance on validation set
         total_test_c_loss = 0.
         total_test_accuracy = 0.
