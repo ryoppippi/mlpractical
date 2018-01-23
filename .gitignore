@@ -1,3 +1,5 @@
+#Pipenv
+.env
 #dropbox stuff
 *.dropbox*
 
