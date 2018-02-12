@@ -23,7 +23,7 @@ experiment_name = "experiment_{}_batch_size_{}_bn_{}_mp_{}".format(experiment_pr
 
 rng = np.random.RandomState(seed=seed)  # set seed
 
-train_data = CIFAR100DataProvider(which_set="train", batch_size=batch_size, rng=rng)
+train_data = CIFAR100DataProvider(which_set="train", batch_size=batch_size, rng=rng, random_sampling=True)
 val_data = CIFAR100DataProvider(which_set="valid", batch_size=batch_size, rng=rng)
 test_data = CIFAR100DataProvider(which_set="test", batch_size=batch_size, rng=rng)
 #  setup our data providers
@@ -44,7 +44,7 @@ dropout_rate = tf.placeholder(tf.float32, name='dropout-prob')
 
 classifier_network = ClassifierNetworkGraph(input_x=data_inputs, target_placeholder=data_targets,
                                             dropout_rate=dropout_rate, batch_size=batch_size,
-                                            num_channels=train_data.inputs.shape[2], n_classes=train_data.num_classes,
+                                            n_classes=train_data.num_classes,
                                             is_training=training_phase, augment_rotate_flag=rotate_data,
                                             strided_dim_reduction=strided_dim_reduction,
                                             use_batch_normalization=batch_norm)  # initialize our computational graph
@@ -83,7 +83,7 @@ with tf.Session() as sess:
                                                    continue_from_epoch))  # restore previous graph to continue operations
 
     best_val_accuracy = 0.
-    with tqdm.tqdm(total=epochs) as epoch_pbar:
+    with tqdm.tqdm(total=epochs - start_epoch) as epoch_pbar:
         for e in range(start_epoch, epochs):
             total_c_loss = 0.
             total_accuracy = 0.
@@ -160,7 +160,7 @@ with tf.Session() as sess:
         total_test_accuracy = 0.
         # computer test loss and accuracy and save
         with tqdm.tqdm(total=total_test_batches) as pbar_test:
-            for batch_id, (x_batch, y_batch) in enumerate(test_data):
+            for batch_idx, (x_batch, y_batch) in enumerate(test_data):
                 c_loss_value, acc = sess.run(
                     [losses_ops["crossentropy_losses"], losses_ops["accuracy"]],
                     feed_dict={dropout_rate: dropout_rate_value, data_inputs: x_batch,
@@ -168,7 +168,7 @@ with tf.Session() as sess:
                 total_test_c_loss += c_loss_value
                 total_test_accuracy += acc
                 iter_out = "test_loss: {}, test_accuracy: {}".format(total_test_c_loss / (batch_idx + 1),
-                                                                     acc / (batch_idx + 1))
+                                                                     total_test_accuracy / (batch_idx + 1))
                 pbar_test.set_description(iter_out)
                 pbar_test.update(1)
 
