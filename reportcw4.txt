@@ -1,0 +1,1 @@
+We use the Sequence Generative Adversarial Nets model. This model, SeqGAN, is produced by Lantao Yu et al. As the same as usual GAN model, this model has two networks, generater and discriminater.

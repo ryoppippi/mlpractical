@@ -25,6 +25,9 @@ requests = "*"
 "830ffa1" = {file = "http://download.pytorch.org/whl/torch-0.3.0.post4-cp35-cp35m-macosx_10_6_x86_64.whl"}
 chainer = "*"
 "1853598" = {file = "http://download.pytorch.org/whl/torch-0.3.0.post4-cp35-cp35m-macosx_10_7_x86_64.whl"}
+pylint = "*"
+jupyterlab = "*"
+"c3cbc2e" = {file = "https://github.com/pytorch/text/archive/master.zip"}
 
 
 [dev-packages]
@@ -33,4 +36,4 @@ chainer = "*"
 
 [requires]
 
-python_version = "3.6"
+python_version = "3.5.4"
